@@ -91,6 +91,7 @@
     <Compile Include="Business\ConfigBusinessTests\DatabaseTests.cs" />
     <Compile Include="Business\CounterBusinessTests\FilterTests.cs" />
     <Compile Include="Business\CounterBusinessTests\CounterTests.cs" />
+    <Compile Include="Business\SqlDmvPerformanceCounterProviderTests.cs" />
     <Compile Include="CollectorEngineTests\RegisterCounterValuesTests.cs" />
     <Compile Include="CollectorEngineTests\StartTests.cs" />
     <Compile Include="Entities\CounterProviderConfigTests.cs" />
