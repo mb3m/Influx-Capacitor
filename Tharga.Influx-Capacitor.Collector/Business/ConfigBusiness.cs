@@ -166,7 +166,7 @@ namespace Tharga.InfluxCapacitor.Collector.Business
             var databaseConfigFilePath = path + "\\database.xml";
             if (!_fileLoaderAgent.DoesFileExist(databaseConfigFilePath))
             {
-                return new List<InfluxDatabaseConfig> { new InfluxDatabaseConfig(true, Constants.NoConfigUrl, null, null, null) };
+                return new List<InfluxDatabaseConfig> { new InfluxDatabaseConfig(true, Constants.NoConfigUrl, null, null, null, null) };
             }
 
             var config = LoadFile(databaseConfigFilePath);
@@ -176,14 +176,14 @@ namespace Tharga.InfluxCapacitor.Collector.Business
         public void SaveDatabaseUrl(string url)
         {
             var config = OpenDatabaseConfig().First();
-            var newDbConfig = new InfluxDatabaseConfig(true, url, config.Username, config.Password, config.Name);
+            var newDbConfig = new InfluxDatabaseConfig(true, url, config.Username, config.Password, config.Name, config.RequestTimeout);
             SaveDatabaseConfigEx(newDbConfig);
         }
 
         public void SaveDatabaseConfig(string databaseName, string username, string password)
         {
             var config = OpenDatabaseConfig().First();
-            var newDbConfig = new InfluxDatabaseConfig(true, config.Url, username, password, databaseName);
+            var newDbConfig = new InfluxDatabaseConfig(true, config.Url, username, password, databaseName, null);
             SaveDatabaseConfigEx(newDbConfig);
         }
 
@@ -405,6 +405,7 @@ namespace Tharga.InfluxCapacitor.Collector.Business
             var refreshInstanceInterval = GetInt(counterGroup, "RefreshInstanceInterval", 0);
             var collectorEngineType = GetString(counterGroup, "CollectorEngineType", "Safe");
             var providerName = GetString(counterGroup, "Provider", string.Empty);
+            var allowDuplicateInstanceNames = GetBool(counterGroup, "AllowDuplicateInstanceNames", false);
 
             var counters = counterGroup.GetElementsByTagName("Counter");
             var cts = new List<ICounter>();
@@ -450,7 +451,7 @@ namespace Tharga.InfluxCapacitor.Collector.Business
                 cet = CollectorEngineType.Safe;
             }
 
-            return new CounterGroup(name, secondsInterval, refreshInstanceInterval, cts, tags, cet, filters, providerName);
+            return new CounterGroup(name, secondsInterval, refreshInstanceInterval, cts, tags, cet, filters, providerName, allowDuplicateInstanceNames);
         }
 
         private static string GetString(XmlElement element, string name, string defaultValue = null)
@@ -474,6 +475,20 @@ namespace Tharga.InfluxCapacitor.Collector.Business
             {
                 if (defaultValue == null)
                     throw new InvalidOperationException(string.Format("Cannot parse attribute {0} value to integer.", name));
+                return defaultValue.Value;
+            }
+
+            return value;
+        }
+
+        private static bool GetBool(XmlElement element, string name, bool? defaultValue = null)
+        {
+            var stringValue = GetString(element, name, defaultValue != null ? defaultValue.ToString() : null);
+            bool value;
+            if (!bool.TryParse(stringValue, out value))
+            {
+                if (defaultValue == null)
+                    throw new InvalidOperationException(string.Format("Cannot parse attribute {0} value to bool.", name));
                 return defaultValue.Value;
             }
 
@@ -675,6 +690,7 @@ namespace Tharga.InfluxCapacitor.Collector.Business
             string username = null;
             string password = null;
             string name = null;
+            TimeSpan? requestTimeout = null;
             foreach (XmlElement item in database.ChildNodes)
             {
                 switch (item.Name)
@@ -691,12 +707,15 @@ namespace Tharga.InfluxCapacitor.Collector.Business
                     case "Name":
                         name = item.InnerText;
                         break;
+                    case "RequestTimeoutMs":
+                        requestTimeout = new TimeSpan(0, 0, 0, 0, int.Parse(item.InnerText));
+                        break;
                     case "":
                         break;
                 }
             }
 
-            var db = new InfluxDatabaseConfig(enabled, url, username, password, name);
+            var db = new InfluxDatabaseConfig(enabled, url, username, password, name, requestTimeout);
             return db;
         }
 

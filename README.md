@@ -177,6 +177,7 @@ Supported types are
 - Username - Login username
 - Password - password
 - Name - Name of the database
+- RequestTimeoutMs - Optional value, describing the HTTP request timeout when sending data to influxDB.
 
 ```xml
 <Influx-Capacitor>
@@ -185,6 +186,7 @@ Supported types are
     <Username>MyUser</Username>
     <Password>qwerty</Password>
     <Name>InfluxDbName</Name>
+	<RequestTimeoutMs>15000</RequestTimeoutMs>
   </Database>
 </Influx-Capacitor>
 ```
@@ -299,7 +301,7 @@ The console version is named *Tharga.Influx-Capacitor.Console.exe* and provided 
 - Create - Create a new performance counter config file for a counter.
 
 ## Versions
-The currently supported version of InfluxDB is 0.9x.
+The currently supported versions of InfluxDB is from 0.9.x to 0.12.x.
 
 ## Metadata
 By default metadata is sent fron Influx-Capacitor to influxDB. (There is an Application that can turn this off if you do not want it)

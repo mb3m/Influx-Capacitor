@@ -13,6 +13,10 @@ namespace Tharga.InfluxCapacitor.Collector.Business
         private SqlPerfCounterStore _store;
         private DateTime _rowsAge;
 
+        public void Setup(ICounterProviderConfig config)
+        {
+        }
+
         public IPerformanceCounterGroup GetGroup(ICounterGroup @group)
         {
             return new SqlDmvPerformanceCounterGroup(this, group);

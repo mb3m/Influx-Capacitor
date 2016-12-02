@@ -23,7 +23,7 @@ namespace Tharga.InfluxCapacitor.Collector.Tests.Business
         public void Should_Collect_Local_SqlExpress_Counters()
         {
             var provider = new SqlDmvPerformanceCounterProvider();
-            var group = provider.GetGroup(new CounterGroup("Test", 10, 10, new List<ICounter>() { new Counter("MSSQL$SQLEXPRESS:Locks", "Lock Requests/sec", "Application", null, null, null, null, null) }, null, CollectorEngineType.Exact, null));
+            var group = provider.GetGroup(new CounterGroup("Test", 10, 10, new List<ICounter>() { new Counter("MSSQL$SQLEXPRESS:Locks", "Lock Requests/sec", "Application", null, null, null, null, null) }, null, CollectorEngineType.Exact, null, null, false));
 
             var counters = group.GetCounters().ToList();
 

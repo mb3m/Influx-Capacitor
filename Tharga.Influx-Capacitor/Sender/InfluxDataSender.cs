@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using InfluxDB.Net.Helpers;
 using InfluxDB.Net.Models;
 using Tharga.Influx_Capacitor.Agents;
@@ -12,6 +13,7 @@ namespace Tharga.Influx_Capacitor.Sender
     public class InfluxDataSender : IDataSender
     {
         private readonly object _syncRoot = new object();
+        private readonly MyLogger _myLogger;
         private readonly ISenderConfiguration _senderConfiguration;
         private readonly Queue<Point[]> _queue = new Queue<Point[]>();
         private readonly Queue<Tuple<int, Point[]>> _failQueue = new Queue<Tuple<int, Point[]>>();
@@ -23,9 +25,10 @@ namespace Tharga.Influx_Capacitor.Sender
 
         public InfluxDataSender(ISenderConfiguration senderConfiguration)
         {
+            _myLogger = new MyLogger();
             _senderConfiguration = senderConfiguration;
             _dropOnFail = false;
-            _client = new Lazy<IInfluxDbAgent>(() => new InfluxDbAgent(senderConfiguration.Properties.Url, senderConfiguration.Properties.DatabaseName, senderConfiguration.Properties.UserName, senderConfiguration.Properties.Password));
+            _client = new Lazy<IInfluxDbAgent>(() => new InfluxDbAgent(senderConfiguration.Properties.Url, senderConfiguration.Properties.DatabaseName, senderConfiguration.Properties.UserName, senderConfiguration.Properties.Password, senderConfiguration.Properties.RequestTimeout));
         }
 
         public SendResponse Send()
@@ -62,8 +65,10 @@ namespace Tharga.Influx_Capacitor.Sender
                         var client = _client.Value;
                         if (client != null)
                         {
-                            //TODO: Possible to log what is sent. To an output file or similar.
+                            _myLogger.Debug("Sending:" + Environment.NewLine + GetPointsString(points));
                             var response = client.WriteAsync(points).Result;
+                            _myLogger.Info("Response: " + response.StatusCode + " " + response.Body);
+
                             _canSucceed = true;
                             OnSendBusinessEvent(new SendCompleteEventArgs(_senderConfiguration, string.Format("Sending {0} points to server.", points.Length), points.Length, SendCompleteEventArgs.OutputLevel.Information));
                         }
@@ -76,6 +81,18 @@ namespace Tharga.Influx_Capacitor.Sender
                 }
                 catch (Exception exception)
                 {
+                    if (points != null)
+                    {
+                        var sb = new StringBuilder();
+                        sb.AppendLine(exception.Message);
+                        sb.AppendLine(GetPointsString(points));
+                        _myLogger.Error(sb.ToString());
+                    }
+                    else
+                    {
+                        _myLogger.Error(exception);
+                    }
+
                     if (exception is AggregateException)
                     {
                         exception = exception.InnerException;
@@ -119,6 +136,18 @@ namespace Tharga.Influx_Capacitor.Sender
             return new SendResponse(responseMessage, stopWatch.Elapsed.TotalMilliseconds);
         }
 
+        private string GetPointsString(Point[] points)
+        {
+            var sb = new StringBuilder();
+            var formatter = _client.Value.GetFormatter();
+            foreach (var point in points)
+            {
+                sb.AppendLine(formatter.PointToString(point));
+            }
+            sb.AppendLine();
+            return sb.ToString();
+        }
+
         public void Enqueue(Point[] points)
         {
             lock (_syncRoot)
@@ -143,7 +172,16 @@ namespace Tharga.Influx_Capacitor.Sender
             get { return _senderConfiguration.Properties.DatabaseName; }
         }
 
-        public int QueueCount { get { return _queue.Sum(x => x.Length) + _failQueue.Sum(x => x.Item2.Length); } }
+        public int QueueCount
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _queue.Sum(x => x.Length) + _failQueue.Sum(x => x.Item2.Length);
+                }
+            }
+        }
 
         protected virtual void OnSendBusinessEvent(SendCompleteEventArgs e)
         {
